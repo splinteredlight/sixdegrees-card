@@ -35,12 +35,35 @@ import {
           degrees = Math.min(6, Math.max(0, degrees));
 
           // now assign back to your sensor object
+          // const sensor = {
+          //     state: raw,         // keep the raw value for display
+          //     degrees,            // 0…6 after clamping & offset
+          //     // …then carry on with your name, header, etc.
+          // };
+        // start with either static name or empty
           const sensor = {
-              state: raw,         // keep the raw value for display
-              degrees,            // 0…6 after clamping & offset
-              // …then carry on with your name, header, etc.
+              state: raw,
+              degrees,
+              name: this.config.name || ''
           };
-
+          // if they gave us a Jinja template, ask HA to render it
+          if (this.config.name_template) {
+              hass.callWS({
+                  type: 'render_template',
+                  template: this.config.name_template,
+                  variables: {
+                      states: hass.states,
+                      state: entity.state,
+                      attributes: entity.attributes
+                  }
+              }).then(rendered => {
+                  sensor.name = rendered;
+                  // force LitElement to redraw with the new name
+                  this.requestUpdate();
+              }).catch(err => {
+                  console.warn('six-degrees-card: template render failed', err);
+              });
+          }
           this.sensor = sensor;
       }
 
@@ -71,8 +94,8 @@ import {
     }
   
     setConfig(config) {
-      if (!config.entity) {
-          throw new Error('You need to specify an entity');
+      if (config.name === undefined && config.name_template === undefined) {
+          throw new Error( 'You must supply either a static name or a name_template' );
         }
         // if (!config.min) {
         //     throw new Error('You need to specify a min value');
